@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cfloat>
 #include <iostream>
+#include <fstream>
 #include <stack>
 
 using namespace std;
@@ -16,6 +17,11 @@ using namespace std;
 #define INITIAL_WIN_H 800
 #define INITIAL_WIN_X 0
 #define INITIAL_WIN_Y 0
+#define NUM_ITER 500
+#define PI 3.14159265358979323846
+#define PI_2 (2*PI)
+#define USE_MY_PARAM
+//#define OUTPUT_FILE "./out.csv"
 
 template <class T>
 class Point {
@@ -63,12 +69,25 @@ bool rubberBanding = false;
 // Variables for keeping track of the screen window dimensions.
 int windowHeight = INITIAL_WIN_W, windowWidth = INITIAL_WIN_H;
 
-double param[] = {-2, 0.5, -1.25, 1.25};
-//double param[] = {0.262, 0.263, 0.002, 0.003};
-//
-Point<double> windowBotLeft (param[0], param[2]);
-Point<double> windowTopRight (param[1], param[3]);
 
+#ifdef USE_MY_PARAM
+    double myParam[] =
+{-2, -1.25, INITIAL_WIN_W/2.5};
+//{-1.06236,0.260434,128835};
+//{-0.748273,-0.0544996, 7.13855e+06};
+//{-0.749956,-0.0529485,4.92623e+07};
+//{-0.74321,0.113349,1.2128e+06};
+    Point<double> windowBotLeft (myParam[0], myParam[1]);
+    double initRatio = myParam[2];
+#else
+//    double param[] = {-2, 0.5, -1.25, 1.25};
+//    double param[] = {0.262, 0.263, 0.002, 0.003};
+//    double param[] = {0.26215, 0.26225, 0.00215, 0.00225};
+//    double param[] = {-1.4014, -1.4010, -0.0002, 0.0002};
+//    double param[] = {0.281, 0.291, -0.019, -0.009};
+    Point<double> windowBotLeft (param[0], param[2]);
+    Point<double> windowTopRight (param[1], param[3]);
+#endif
 
 
 template <class T>
@@ -132,13 +151,109 @@ void pixelToPoint(const Point<int>& pixel, Point<double>& point)
     point.y = (1.0 * pixel.y) / current.ratio + current.base.y;
 }
 
+void assignColor(double intensity, double& r, double& g, double& b )
+{
+    if (intensity == 1)
+    {
+        r = 0; g = 0; b = 0;
+    }
+    else
+    {
+        double I = intensity;
+        //                double I = intensity;
+        r = sin(I*PI_2*0.95);
+        g = sin(I*PI_2*1.2);
+        b = sin(I*PI_2*1.3);
+//        r=I;g=I;b=I;
+        //                a = 1-I;
+    }
+}
+
+void computeCumulativeFrequency()
+{
+    int N = NUM_ITER;
+    Point<double> c (0,0);
+    Point<int> current_pixel (0,0);
+    
+    unsigned int n_partitions = 100;
+    double partition_size = 1.0 / n_partitions;
+    unsigned long nonCumulativeFreqs [n_partitions];
+    unsigned long nonCumulativeTotal = 0;
+    for (auto& x: nonCumulativeFreqs) x = 0;
+    
+    int n, p;
+    double intensity;
+    for (int u = 0; u < windowWidth; u++)
+    {
+        for (int v = 0; v < windowHeight; v++)
+        {
+            current_pixel.x = u;
+            current_pixel.y = v;
+            pixelToPoint(current_pixel, c);
+            n = computeIterationsInline(c, N);
+            intensity = (1.0 * n) / N;
+            p = (unsigned int) floor(intensity / partition_size);
+            
+            nonCumulativeFreqs[p] += 1;
+            nonCumulativeTotal += 1;
+        }
+    }
+    
+    double cumulativeFreqs [n_partitions];
+    for (auto& x: cumulativeFreqs) x = 0;
+    unsigned long cumulativeTotal;
+    cumulativeFreqs[0] = nonCumulativeFreqs[0];
+    cumulativeTotal = nonCumulativeFreqs[0];
+    for (int i = 1; i < n_partitions; i++)
+    {
+        cumulativeFreqs[i] = nonCumulativeFreqs[i] + cumulativeFreqs[i-1];
+    }
+    for (int i = 0; i < n_partitions; i++)
+    {
+        cumulativeFreqs[i] /= nonCumulativeTotal;
+        cout << i << "," <<  nonCumulativeFreqs[i];
+        cout << endl;
+//        cout << "," << cumulativeFreqs[i] << endl;
+    }
+    
+}
+
+void writeRawToFile(const string& filename)
+{
+    ofstream myfile (filename, ios::out | ios::trunc);
+    if ( myfile.is_open() )
+    {
+        int N = NUM_ITER;
+        Point<double> c (0,0);
+        Point<int> current_pixel (0,0);
+        int n;
+        double intensity;
+        int step = 5;
+        for (int u = 0; u < windowWidth; u += step)
+        {
+            for (int v = 0; v < windowHeight; v += step)
+            {
+                current_pixel.x = u;
+                current_pixel.y = v;
+                pixelToPoint(current_pixel, c);
+                n = computeIterationsInline(c, N);
+                intensity = (1.0 * n) / N;
+                myfile << u*windowWidth+v << "," << intensity << endl;
+            }
+        }
+        myfile.close();
+        cout << "finished writing";
+    }
+    else cout << "cannot open file.\n";
+}
+
 void drawPartialMandelbrot(int x0, int y0, int x1, int y1)
 {
-    int N = 500;
+    int N = NUM_ITER;
     Point<double> c (0,0);
     Point<int> current_pixel (0,0);
     int step = 1;
-    
+    int n;
     glBegin( GL_POINTS );
     for (int u = x0; u <= x1; u += step)
     {
@@ -148,18 +263,10 @@ void drawPartialMandelbrot(int x0, int y0, int x1, int y1)
             current_pixel.y = v;
             pixelToPoint(current_pixel, c);
             //            int n = computeIterations(c, N);
-            int n = computeIterationsInline(c, N);
+            n = computeIterationsInline(c, N);
+            
             double r,g,b;
-            if (n == N)
-            {
-                r = 0; g = 0; b = 0;
-            }
-            else
-            {
-                double intensity = (1.0 * n) / N;
-                double I = sqrt(intensity);
-                r = I; g = I; b = I;
-            }
+            assignColor(1.0 * n/N, r, g, b);
             glColor3f(r, g, b);
 //            for (int u1 = u; u1 < u + step; u1++)
 //                for (int v1 = v; v1 < v + step; v1++)
@@ -170,10 +277,15 @@ void drawPartialMandelbrot(int x0, int y0, int x1, int y1)
     glFlush();
 }
 
+
 void drawMandelbrot()
 {
     glClear(GL_COLOR_BUFFER_BIT);
     drawPartialMandelbrot(0, 0, windowWidth, windowHeight);
+//    computeCumulativeFrequency();
+#ifdef OUTPUT_FILE
+    writeRawToFile(OUTPUT_FILE);
+#endif
 }
 
 
@@ -225,24 +337,24 @@ void rubberBand( int x, int y )
 void reshape( int w, int h )
 // Callback for processing reshape events.
 {
-    cout << w << "," << h << endl;
-
-    if (w > windowWidth)
-    {
-        drawPartialMandelbrot(windowWidth, w, 0, h);
-        if (h > windowHeight)
-            drawPartialMandelbrot(0, windowWidth, windowHeight, h);
-    }
-    else if (h > windowHeight)
-    {
-        drawPartialMandelbrot(0, w, windowHeight, h);
-        if (h > windowHeight)
-            drawPartialMandelbrot(windowWidth, w, 0, windowHeight);
-    }
-//    drawMandelbrot();
-    
+//    cout << w << "," << h << endl;
+//
+//    if (w > windowWidth)
+//    {
+//        drawPartialMandelbrot(windowWidth, w, 0, h);
+//        if (h > windowHeight)
+//            drawPartialMandelbrot(0, windowWidth, windowHeight, h);
+//    }
+//    else if (h > windowHeight)
+//    {
+//        drawPartialMandelbrot(0, w, windowHeight, h);
+//        if (h > windowHeight)
+//            drawPartialMandelbrot(windowWidth, w, 0, windowHeight);
+//    }
     windowWidth = w;
     windowHeight = h;
+    
+    drawMandelbrot();
 //    glViewport( 0, 0, ( GLsizei )w, ( GLsizei )h );
 //    glMatrixMode( GL_PROJECTION );
 //    glLoadIdentity();
@@ -359,6 +471,7 @@ void processLeftUp( int x, int y )
         while (!redo.empty()) redo.pop();
         
         drawMandelbrot();
+        cout << newWindow.base.x << "," << newWindow.base.y << "," << newWindow.ratio << endl;
         
     }
 }
@@ -367,11 +480,17 @@ void mouse( int button, int state, int x, int y )
 // Function for processing mouse events.
 {
     if ( button == GLUT_LEFT_BUTTON )
+    {
         switch ( state )
         {
             case GLUT_DOWN: processLeftDown( x, y ); break;
             case GLUT_UP: processLeftUp( x, y ); break;
         }
+    }
+    if (button == GLUT_RIGHT_BUTTON)
+    {
+        
+    }
 }
 
 int main( int argc, char * argv[] )
@@ -390,10 +509,14 @@ int main( int argc, char * argv[] )
     glutInitWindowPosition( INITIAL_WIN_X, INITIAL_WIN_Y );
     windowWidth = INITIAL_WIN_W;
     windowHeight = INITIAL_WIN_H;
-    glutCreateWindow( "Mandelbrot" );
+    glutCreateWindow( "Mandelzoom" );
     
+#ifdef USE_MY_PARAM
+    Window currentWindow (windowBotLeft, initRatio);
+#else
     Window currentWindow (windowBotLeft,
                           windowWidth/(windowTopRight.x - windowBotLeft.x));
+#endif
     undo.push(currentWindow);
     
     // You don't (yet) want to know what this does.
@@ -404,11 +527,11 @@ int main( int argc, char * argv[] )
     glLoadIdentity();
 //    glTranslatef( 0.375, 0.375, 0.0 );
     
-    // Set the drawing color.
-    glColor3f(1.0,1.0,1.0);
-    
-    // Set the color for clearing the window.
-    glClearColor( 0.0, 0.0, 0.0, 0.0 );
+//    // Set the drawing color.
+//    glColor3f(1.0,1.0,1.0);
+//
+//    // Set the color for clearing the window.
+//    glClearColor( 0.0, 0.0, 0.0, 0.0 );
     
     // Set up the menus.
     setMenus();
