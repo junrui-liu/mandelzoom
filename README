@@ -1,0 +1,19 @@
+# Project: Mandelzoom
+A Mandelbrot set viewer.
+
+### Features:
+- Uses rubber band to zoom into a particular region.
+- Dynamically resizes the window's aspect ratio.
+- Undo/redo previous zooms.
+
+### TODO:
+- Linearize distribution of intensity (I), defined as the ratio between the number of trials before the sequence diverge and the cap.
+- Better mapping from I to RGB triples ([0,1] -> [0.1]^3).
+  - Currently using sine with period of `1 + alpha`, where `alpha` is a paramter.
+  - Design some animation to traverse different combinations of RGB triples, possibly via the inverse Cantor pairing function generalized to Z^3.
+  - More degrees of freedom, e.g. a larger zoo of non-linear functions and ways of combining them.
+- Automatic zooming into a selected point.
+  - Would need better precision (infinite precision?) floating point arithmetic.
+- Optimized sequence computation and other ways to speed things up.
+- Fully fix reshaping -- only render what is absolutely need to be re-rendered.
+- Fix redo/undo to support further zooming-in/out even when the stack of operations is empty.
