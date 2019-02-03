@@ -6,27 +6,36 @@
 #include <cmath>
 #include <cfloat>
 #include <stack>
-#include <unistd.h> // usleep
 #include "mandelzoom.h"
 #include "Window.h"
 #include "Point.h"
 #include "Color.hpp"
-
 #include <iostream>
 #include <fstream>
 
 using namespace std;
 
+/*----------------------------------------------
+ *              Initialization
+ *---------------------------------------------*/
+
+const double initialWindowParams[] = INITIAL_WINDOW_PARAMS;
+Point<double> initialWindowBase(initialWindowParams[0], initialWindowParams[1]);
+double initWindowRatio = initialWindowParams[2];
+
+const double initialColorParams[] = INITIAL_COLOR_PARAMS;
+double colorParam1 = initialColorParams[0],
+colorParam2 = initialColorParams[1],
+colorParam3 = initialColorParams[2];
+
+
+/*----------------------------------------------
+ *                  States
+ *---------------------------------------------*/
 bool init = true;
 stack<Window*> zoomOut;
 stack<Window*> zoomIn;
 Window* currentWindow;
-double colorK1 = 0.71, colorK2 = 0.32, colorK3 = 0.29;
-
-
-double init_param[] = INIT_PARAM;
-Point<double> windowBotLeft(init_param[0], init_param[1]);
-double initRatio = init_param[2];
 
 // Variable for use in rubberbanding.
 int xAnchor, yAnchor, xStretch, yStretch;
@@ -36,6 +45,9 @@ bool rubberBanding = false;
 int windowHeight = INITIAL_WIN_W, windowWidth = INITIAL_WIN_H;
 
 
+/*----------------------------------------------
+ *            Function Definitions
+ *---------------------------------------------*/
 void computeCumulativeFrequency()
 {
     int N = NUM_ITER;
@@ -114,48 +126,9 @@ void writeRawToFile(const string& filename)
     else cout << "cannot open file.\n";
 }
 
-
-void drawPartialMandelbrot(int x0, int y0, int x1, int y1)
-{
-    unsigned int N = NUM_ITER;
-    Point<double> c;
-    Point<int> current_pixel;
-    
-    int step = 1;
-    int flush_step = step * 10;
-    unsigned int n;
-    double r, g, b;
-//    Window& current = zoomOut.top();
-    
-    for (int u = x0, stride = flush_step; u <= x1; u += step, stride += step)
-    {
-        if (stride == flush_step)
-        {
-            stride = 0;
-            glEnd();
-            //glFlush();
-        }
-        if (stride == 0)
-            glBegin(GL_POINTS);
-        for (int v = y0; v <= y1; v += step)
-        {
-            current_pixel.x = u;
-            current_pixel.y = v;
-//            current.pixelToPoint(current_pixel, c);
-            currentWindow->pixelToPoint(current_pixel, c);
-            n = Point<double>::computeIterationsInline(c, N);
-            
-            Color::getColor(1.0*n/N, colorK1, colorK2, colorK3, r, g, b);
-            
-            glColor3f(r, g, b);
-            glVertex2i(u, v);
-        }
-        
-    }
-    glEnd();
-    glFlush();
-}
-
+/*
+ * Clear the screen and redraw the image.
+ */
 void drawMandelbrot()
 {
     glClear(GL_COLOR_BUFFER_BIT);
@@ -166,24 +139,80 @@ void drawMandelbrot()
 #endif
 }
 
+/*
+ * Draw a partial image bounded by a rectangle
+ * with base point (x0,y0) and diagonal (x1,y1).
+ * Assumes:
+ *   0 <= x0 <= x1
+ *   0 <= y0 <= y1
+ */
+void drawPartialMandelbrot(int x0, int y0, int x1, int y1)
+{
+    // n is the # of iterations before a sequence diverges
+    unsigned int N = NUM_ITER, n = 0;
+    Point<int> current_pixel;
+    Point<double> c; // the complex number corresponding to current_pixel
+    double r, g, b; // colors
+    
+    // draw some number of columns before flushing the screen
+    int flush_max_stride = FLUSH_EVERY_NTH_COL;
+    
+    for (int x = x0, stride = flush_max_stride; x <= x1; x += 1, stride += 1)
+    {
+        if (stride == flush_max_stride)
+        {
+            stride = 0;
+            glEnd();
+        }
+        if (stride == 0)
+            glBegin(GL_POINTS);
+        for (int y = y0; y <= y1; y += 1)
+        {
+            current_pixel.x = x;
+            current_pixel.y = y;
+            currentWindow->pixelToPoint(current_pixel, c);
+            n = Point<double>::computeIterationsInline(c, N);
+            
+            Color::getColor(1.0*n/N, colorParam1, colorParam2, colorParam3, r, g, b);
+            
+            glColor3f(r, g, b);
+            glVertex2i(x, y);
+        }
+        
+    }
+    glEnd();
+    glFlush();
+}
 
+
+/*
+ * Clear the color buffer.
+ * Taken from Prof. Ellman's example code.
+ */
 void clearPicture()
 {
     glClear(GL_COLOR_BUFFER_BIT);
     glFlush();
 }
 
-void drawLine(int xOld, int yOld, int xNew, int yNew)
-// Draw a line from (xOld,yOld) to (xNew,yNew).
+/*
+ * Draw a line from (x0,y0) to (x1,y1)
+ * Taken from Prof. Ellman's example code.
+ */
+void drawLine(int x0, int y0, int x1, int y1)
 {
     glBegin(GL_LINES);
-    glVertex2i(xOld, yOld);
-    glVertex2i(xNew, yNew);
+    glVertex2i(x0, y0);
+    glVertex2i(x1, y1);
     glEnd();
     glFlush();
 }
 
-
+/*
+ * Draw a rectangular rubber band with anchor (xA, yA)
+ * and diagonal (xS, yS).
+ * Taken from Prof. Ellman's example code.
+ */
 void drawRubberBand(int xA, int yA, int xS, int yS)
 {
     glEnable(GL_COLOR_LOGIC_OP);
@@ -198,8 +227,12 @@ void drawRubberBand(int xA, int yA, int xS, int yS)
     glFlush();
 }
 
+
+/*
+ * Callback for processing mouse motion.
+ * Taken from Prof. Ellman's example code.
+ */
 void rubberBand(int x, int y)
-// Callback for processing mouse motion.
 {
     if (rubberBanding)
     {
@@ -212,12 +245,15 @@ void rubberBand(int x, int y)
     }
 }
 
+/*
+ * Callback for processing reshape events.
+ * Adopted from Prof. Ellman's example code.
+ */
 void reshape(int w, int h)
-// Callback for processing reshape events.
 {
     if (!init)
     {
-//        Window& current = zoomOut.top();
+        // re-draw only the protruding rectangles, if any
         currentWindow->base.y += (windowHeight - h) / currentWindow->ratio;
         if (w > windowWidth)
         {
@@ -225,7 +261,7 @@ void reshape(int w, int h)
             if (h > windowHeight)
                 drawPartialMandelbrot(0, windowWidth, windowHeight, h);
         }
-        else if (h > windowHeight)
+        else if (h > windowHeight) // symmetric to above
         {
             drawPartialMandelbrot(0, w, windowHeight, h);
             if (h > windowHeight)
@@ -235,6 +271,8 @@ void reshape(int w, int h)
         windowHeight = h;
     }
     init = false;
+    
+    // TODO: do not re-render the entire window
     glViewport(0, 0, (GLsizei)w, (GLsizei)h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -242,22 +280,31 @@ void reshape(int w, int h)
 }
 
 
-void escExit(GLubyte key, int, int)
-// Callback for processing keyboard events.
+/*
+ * Callback for processing keyboard events.
+ * Adopted from Prof. Ellman's example code.
+ */
+void keyboard(GLubyte key, int, int)
 {
+    int mod = 1.0 / COLOR_PARAM_GRANULARITY;
     switch (key)
     {
         case 27: // esc
             std::exit(0); break;
         case 32: // space
-            drawMandelbrot();
-            cout << "current color: ("
-            << colorK1 << ","
-            << colorK2 << ","
-            << colorK3 << ")" << endl;
+            colorParam1 = 1.0 * (random() % mod) / mod;
+            colorParam2 = 1.0 * (random() % mod) / mod;
+            colorParam3 = 1.0 * (random() % mod) / mod;
+            break;
+        case 67: // char 'C'
+            colorParam1 = initialColorParams[0];
+            colorParam2 = initialColorParams[1];
+            colorParam3 = initialColorParams[2];
+            break;
     }
-    
+    drawMandelbrot();
 }
+
 
 
 void mainMenu(int item)
@@ -369,8 +416,6 @@ void processLeftUp(int x, int y)
         pixelBase.x = (xMax + xMin - newWidth) / 2;
         pixelBase.y = (yMax + yMin - newHeight) / 2;
         
-//        Window& current = zoomOut.top();
-        
         Window* newWindow = new Window(*currentWindow);
         currentWindow->pixelToPoint(pixelBase, newWindow->base);
         newWindow->ratio /= ratioFinal;
@@ -400,10 +445,6 @@ void mouse(int button, int state, int x, int y)
             case GLUT_UP: processLeftUp(x, y); break;
         }
     }
-    if (button == GLUT_RIGHT_BUTTON)
-    {
-        
-    }
 }
 
 #ifndef USE_TEST_FILE_MAIN
@@ -427,10 +468,8 @@ int main(int argc, char * argv[])
     windowHeight = INITIAL_WIN_H;
     glutCreateWindow("Mandelzoom");
     
-    Window* initWindow = new Window(windowBotLeft, initRatio);
+    Window* initWindow = new Window(initialWindowBase, initWindowRatio);
     currentWindow = initWindow;
-//    zoomOut.push(currentWin);
-    
     
     // You don't (yet) want to know what this does.
     glMatrixMode(GL_PROJECTION);
@@ -453,7 +492,7 @@ int main(int argc, char * argv[])
     glutDisplayFunc(drawMandelbrot);
     glutMouseFunc(mouse);
     glutReshapeFunc(reshape);
-    glutKeyboardFunc(escExit);
+    glutKeyboardFunc(keyboard);
     glutMotionFunc(rubberBand);
     glutPassiveMotionFunc(rubberBand);
     

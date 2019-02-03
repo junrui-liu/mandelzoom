@@ -84,18 +84,19 @@ unsigned int Point<T>::computeIterations(const Point<T>& c, unsigned int bound)
 template <class T>
 unsigned int Point<T>::computeIterationsInline(const Point<T>& c, unsigned int bound)
 {
-    T zx = 0.0, zy = 0.0;
-    T cx = c.x, cy = c.y;
-    T mod_sq;
-    T tmp_x, tmp_y;
+    T z_r = 0.0, z_i = 0.0;
+    T c_r = c.x, c_i = c.y;
+    T z_rsq = z_r * z_r, z_isq = z_i * z_i;
+    
     for (unsigned int run = 0; run < bound; ++run)
     {
-        tmp_x = zx * zx - zy * zy + cx;
-        tmp_y = 2 * zx * zy + cy;
-        mod_sq = tmp_x * tmp_x + tmp_y * tmp_y;
-        if (mod_sq > 4) return run;
-        zx = tmp_x;
-        zy = tmp_y;
+        if (z_rsq + z_isq > 4) return run;
+        z_i = z_r * z_i;
+        z_i *= 2;
+        z_i += c_i;
+        z_r = z_rsq - z_isq + c_r;
+        z_rsq = z_r * z_r;
+        z_isq = z_i * z_i;
     }
     return bound;
 }
