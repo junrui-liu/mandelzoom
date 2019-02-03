@@ -9,12 +9,14 @@
 #ifndef point_tpp
 #define point_tpp
 
+/* default is (0,0) */
 template <class T>
-Point<T>::Point(T x1, T y1)
-{
-    x = x1;
-    y = y1;
-}
+Point<T>::Point() : x(0), y(0)
+{}
+
+template <class T>
+Point<T>::Point(T x1, T y1) : x(x1), y(y1)
+{}
 
 /* copy constructor */
 template <class T>
@@ -24,11 +26,30 @@ Point<T>::Point(const Point<T>& p)
     y = p.y;
 }
 
+/* static methods */
 template <class T>
-void Point<T>::complexAdd(const Point<T>& p, const Point<T>& q, Point<T>& result)
+void Point<T>::complexAdd(const Point<T>& p, const Point<T>& q,
+                          Point<T>& result)
 {
     result.x = p.x + q.x;
     result.y = p.y + q.y;
+}
+
+template <class T>
+void Point<T>::complexScale(const Point<T>& p, T scalar, Point<T>& result)
+{
+    result.x = p.x * scalar;
+    result.y = p.y * scalar;
+}
+
+template <class T>
+void Point<T>::scaleWrtPoints(const Point<T>& pivot, const Point<T>& q,
+                              T scalar, Point<T>& result)
+{
+    Point<T> tmp;
+    Point<T>::complexScale(pivot, 1-scalar, tmp);
+    Point<T>::complexScale(q, scalar, result);
+    Point<T>::complexAdd(tmp, result, result);
 }
 
 template <class T>
@@ -77,6 +98,14 @@ unsigned int Point<T>::computeIterationsInline(const Point<T>& c, unsigned int b
         zy = tmp_y;
     }
     return bound;
+}
+
+/* overloaded methods */
+template <class T>
+std::ostream& operator<< (std::ostream& out, const Point<T>& p)
+{
+    out << "Point(" << p.x << "," << p.y << ")";
+    return out;
 }
 
 #endif /* point_tpp */

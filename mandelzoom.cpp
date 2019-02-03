@@ -5,16 +5,23 @@
 #include <cstdlib>
 #include <cmath>
 #include <cfloat>
+#include <stack>
+#include <unistd.h> // usleep
+#include "mandelzoom.h"
+#include "Window.h"
+#include "Point.h"
+#include "Color.hpp"
+
 #include <iostream>
 #include <fstream>
-#include <stack>
-#include "mandelzoom.h"
 
 using namespace std;
 
 bool init = true;
-stack<Window> smaller;
-stack<Window> larger;
+stack<Window*> zoomOut;
+stack<Window*> zoomIn;
+Window* currentWindow;
+double colorK1 = 0.71, colorK2 = 0.32, colorK3 = 0.29;
 
 
 double init_param[] = INIT_PARAM;
@@ -28,33 +35,97 @@ bool rubberBanding = false;
 // Variables for keeping track of the screen window dimensions.
 int windowHeight = INITIAL_WIN_W, windowWidth = INITIAL_WIN_H;
 
-void assignColor(double intensity, double& r, double& g, double& b)
+
+void computeCumulativeFrequency()
 {
-    if (intensity == 1)
+    int N = NUM_ITER;
+    Point<double> c;
+    Point<int> current_pixel;
+    Window& current = *zoomOut.top();
+    unsigned int n_partitions = 100;
+    double partition_size = 1.0 / n_partitions;
+    unsigned long *nonCumulativeFreqs = (unsigned long *)calloc(n_partitions, sizeof(unsigned long));
+    unsigned long nonCumulativeTotal = 0;
+    
+    int n, p;
+    double intensity;
+    for (int u = 0; u < windowWidth; u++)
     {
-        r = 0; g = 0; b = 0;
+        for (int v = 0; v < windowHeight; v++)
+        {
+            current_pixel.x = u;
+            current_pixel.y = v;
+            current.pixelToPoint(current_pixel, c);
+            n = Point<double>::computeIterationsInline(c, N);
+            intensity = (1.0 * n) / N;
+            p = (unsigned int)floor(intensity / partition_size);
+            
+            nonCumulativeFreqs[p] += 1;
+            nonCumulativeTotal += 1;
+        }
     }
-    else
+    
+    double* cumulativeFreqs = (double *) calloc (n_partitions, sizeof(double));
+    unsigned long cumulativeTotal;
+    cumulativeFreqs[0] = nonCumulativeFreqs[0];
+    cumulativeTotal = nonCumulativeFreqs[0];
+    for (int i = 1; i < n_partitions; i++)
     {
-        double I = intensity;
-        //                double I = intensity;
-        r = sin(I*PI_2*0.9);
-        g = sin(I*PI_2*1.2);
-        b = sin(I*PI_2*1.3);
-        //        r=I;g=I;b=I;
+        cumulativeFreqs[i] = nonCumulativeFreqs[i] + cumulativeFreqs[i - 1];
     }
+    for (int i = 0; i < n_partitions; i++)
+    {
+        cumulativeFreqs[i] /= nonCumulativeTotal;
+        cout << i << "," << nonCumulativeFreqs[i];
+        cout << endl;
+        //        cout << "," << cumulativeFreqs[i] << endl;
+    }
+    free(nonCumulativeFreqs);
+    free(cumulativeFreqs);
 }
+
+void writeRawToFile(const string& filename)
+{
+    ofstream myfile(filename, ios::out | ios::trunc);
+    if (myfile.is_open())
+    {
+        int N = NUM_ITER;
+        Point<double> c;
+        Point<int> current_pixel;
+        Window& current = *zoomOut.top();
+        int n;
+        double intensity;
+        int step = 5;
+        for (int u = 0; u < windowWidth; u += step)
+        {
+            for (int v = 0; v < windowHeight; v += step)
+            {
+                current_pixel.x = u;
+                current_pixel.y = v;
+                current.pixelToPoint(current_pixel, c);
+                n = Point<double>::computeIterationsInline(c, N);
+                intensity = (1.0 * n) / N;
+                myfile << u * windowWidth + v << "," << intensity << endl;
+            }
+        }
+        myfile.close();
+        cout << "finished writing";
+    }
+    else cout << "cannot open file.\n";
+}
+
 
 void drawPartialMandelbrot(int x0, int y0, int x1, int y1)
 {
     unsigned int N = NUM_ITER;
-    Point<double> c(0, 0);
-    Point<int> current_pixel(0, 0);
+    Point<double> c;
+    Point<int> current_pixel;
     
     int step = 1;
     int flush_step = step * 10;
     unsigned int n;
-    Window& current = smaller.top();
+    double r, g, b;
+//    Window& current = zoomOut.top();
     
     for (int u = x0, stride = flush_step; u <= x1; u += step, stride += step)
     {
@@ -70,11 +141,12 @@ void drawPartialMandelbrot(int x0, int y0, int x1, int y1)
         {
             current_pixel.x = u;
             current_pixel.y = v;
-            current.pixelToPoint(current_pixel, c);
+//            current.pixelToPoint(current_pixel, c);
+            currentWindow->pixelToPoint(current_pixel, c);
             n = Point<double>::computeIterationsInline(c, N);
             
-            double r, g, b;
-            assignColor(1.0 * n / N, r, g, b);
+            Color::getColor(1.0*n/N, colorK1, colorK2, colorK3, r, g, b);
+            
             glColor3f(r, g, b);
             glVertex2i(u, v);
         }
@@ -89,7 +161,7 @@ void drawMandelbrot()
     glClear(GL_COLOR_BUFFER_BIT);
     drawPartialMandelbrot(0, 0, windowWidth, windowHeight);
     //    computeCumulativeFrequency();
-#ifdef OUTPUT_FILE
+#ifdef INTENSITY_DISTRIBUTION_OUTPUT
     writeRawToFile(OUTPUT_FILE);
 #endif
 }
@@ -145,8 +217,8 @@ void reshape(int w, int h)
 {
     if (!init)
     {
-        Window& current = smaller.top();
-        current.base.y += (windowHeight - h) / current.ratio;
+//        Window& current = zoomOut.top();
+        currentWindow->base.y += (windowHeight - h) / currentWindow->ratio;
         if (w > windowWidth)
         {
             drawPartialMandelbrot(windowWidth, w, 0, h);
@@ -173,33 +245,60 @@ void reshape(int w, int h)
 void escExit(GLubyte key, int, int)
 // Callback for processing keyboard events.
 {
-    if (key == 27 /* ESC */) std::exit(0);
+    switch (key)
+    {
+        case 27: // esc
+            std::exit(0); break;
+        case 32: // space
+            drawMandelbrot();
+            cout << "current color: ("
+            << colorK1 << ","
+            << colorK2 << ","
+            << colorK3 << ")" << endl;
+    }
+    
 }
 
 
 void mainMenu(int item)
 // Callback for processing main menu.
 {
+    Window* newWindow;
     switch (item)
     {
-        case 1: // smaller
-            if (!smaller.empty())
+        case 1: // zoomOut
+            if (!zoomOut.empty())
             {
-                Window& w = smaller.top();
-                smaller.pop();
-                larger.push(w);
-                drawMandelbrot();
-                
+                newWindow = zoomOut.top();
+                zoomOut.pop();
             }
+            else
+            {
+                newWindow = new Window(*currentWindow);
+                currentWindow->
+                scaleWrtCenter(ZOOM_OUT_DEFAULT_SCALING,
+                               windowWidth, windowHeight, *newWindow);
+            }
+            zoomIn.push(currentWindow);
+            currentWindow = newWindow;
+            drawMandelbrot();
             break;
-        case 2: // larger
-            if (!larger.empty())
+        case 2: // zoomIn
+            if (!zoomIn.empty())
             {
-                Window& w = larger.top();
-                larger.pop();
-                smaller.push(w);
-                drawMandelbrot();
+                newWindow = zoomIn.top();
+                zoomIn.pop();
             }
+            else
+            {
+                newWindow = new Window(*currentWindow);
+                currentWindow->
+                scaleWrtCenter(ZOOM_IN_DEFAULT_SCALING,
+                               windowWidth, windowHeight, *newWindow);
+            }
+            zoomOut.push(currentWindow);
+            currentWindow = newWindow;
+            drawMandelbrot();
             break;
         case 3: // exit
             std::exit(0);
@@ -210,11 +309,10 @@ void setMenus()
 // Function for creating menus.
 {
     glutCreateMenu(mainMenu);
-    glutAddMenuEntry("smaller", 1);
-    glutAddMenuEntry("larger", 2);
+    glutAddMenuEntry("Zoom Out", 1);
+    glutAddMenuEntry("Zoom In", 2);
     glutAddMenuEntry("Exit", 3);
-    //    glutAttachMenu( GLUT_MIDDLE_BUTTON );
-    glutAttachMenu(GLUT_RIGHT_BUTTON); // TODO: switch to middle button when done
+    glutAttachMenu(MENU_BUTTON);
 }
 
 
@@ -267,21 +365,26 @@ void processLeftUp(int x, int y)
             newWidth = windowWidth * ratioNewOldHeight;
         }
         
-        Point<int> pixelBase(0, 0);
+        Point<int> pixelBase;
         pixelBase.x = (xMax + xMin - newWidth) / 2;
         pixelBase.y = (yMax + yMin - newHeight) / 2;
         
-        Window& current = smaller.top();
+//        Window& current = zoomOut.top();
         
-        Window newWindow(current);
-        current.pixelToPoint(pixelBase, newWindow.base);
-        newWindow.ratio /= ratioFinal;
-        smaller.push(newWindow);
+        Window* newWindow = new Window(*currentWindow);
+        currentWindow->pixelToPoint(pixelBase, newWindow->base);
+        newWindow->ratio /= ratioFinal;
+        zoomOut.push(currentWindow);
+        currentWindow = newWindow;
         
-        while (!larger.empty()) larger.pop();
+        while (!zoomIn.empty())
+        {
+            free(zoomIn.top());
+            zoomIn.pop();
+        }
         
         drawMandelbrot();
-        cout << newWindow.base.x << "," << newWindow.base.y << "," << newWindow.ratio << endl;
+        cout << *newWindow << endl;
         
     }
 }
@@ -303,6 +406,7 @@ void mouse(int button, int state, int x, int y)
     }
 }
 
+#ifndef USE_TEST_FILE_MAIN
 int main(int argc, char * argv[])
 {
 //     Mask floating point exceptions.
@@ -323,8 +427,10 @@ int main(int argc, char * argv[])
     windowHeight = INITIAL_WIN_H;
     glutCreateWindow("Mandelzoom");
     
-    Window currentWin(windowBotLeft, initRatio);
-    smaller.push(currentWin);
+    Window* initWindow = new Window(windowBotLeft, initRatio);
+    currentWindow = initWindow;
+//    zoomOut.push(currentWin);
+    
     
     // You don't (yet) want to know what this does.
     glMatrixMode(GL_PROJECTION);
@@ -354,84 +460,4 @@ int main(int argc, char * argv[])
     glutMainLoop();
     return 0;
 }
-
-
-
-
-void computeCumulativeFrequency()
-{
-    int N = NUM_ITER;
-    Point<double> c(0, 0);
-    Point<int> current_pixel(0, 0);
-    Window& current = smaller.top();
-    unsigned int n_partitions = 100;
-    double partition_size = 1.0 / n_partitions;
-    unsigned long *nonCumulativeFreqs = (unsigned long *)calloc(n_partitions, sizeof(unsigned long));
-    unsigned long nonCumulativeTotal = 0;
-    
-    int n, p;
-    double intensity;
-    for (int u = 0; u < windowWidth; u++)
-    {
-        for (int v = 0; v < windowHeight; v++)
-        {
-            current_pixel.x = u;
-            current_pixel.y = v;
-            current.pixelToPoint(current_pixel, c);
-            n = Point<double>::computeIterationsInline(c, N);
-            intensity = (1.0 * n) / N;
-            p = (unsigned int)floor(intensity / partition_size);
-            
-            nonCumulativeFreqs[p] += 1;
-            nonCumulativeTotal += 1;
-        }
-    }
-    
-    double* cumulativeFreqs = (double *) calloc (n_partitions, sizeof(double));
-    unsigned long cumulativeTotal;
-    cumulativeFreqs[0] = nonCumulativeFreqs[0];
-    cumulativeTotal = nonCumulativeFreqs[0];
-    for (int i = 1; i < n_partitions; i++)
-    {
-        cumulativeFreqs[i] = nonCumulativeFreqs[i] + cumulativeFreqs[i - 1];
-    }
-    for (int i = 0; i < n_partitions; i++)
-    {
-        cumulativeFreqs[i] /= nonCumulativeTotal;
-        cout << i << "," << nonCumulativeFreqs[i];
-        cout << endl;
-        //        cout << "," << cumulativeFreqs[i] << endl;
-    }
-    free(nonCumulativeFreqs);
-    free(cumulativeFreqs);
-}
-
-void writeRawToFile(const string& filename)
-{
-    ofstream myfile(filename, ios::out | ios::trunc);
-    if (myfile.is_open())
-    {
-        int N = NUM_ITER;
-        Point<double> c(0, 0);
-        Point<int> current_pixel(0, 0);
-        Window& current = smaller.top();
-        int n;
-        double intensity;
-        int step = 5;
-        for (int u = 0; u < windowWidth; u += step)
-        {
-            for (int v = 0; v < windowHeight; v += step)
-            {
-                current_pixel.x = u;
-                current_pixel.y = v;
-                current.pixelToPoint(current_pixel, c);
-                n = Point<double>::computeIterationsInline(c, N);
-                intensity = (1.0 * n) / N;
-                myfile << u * windowWidth + v << "," << intensity << endl;
-            }
-        }
-        myfile.close();
-        cout << "finished writing";
-    }
-    else cout << "cannot open file.\n";
-}
+#endif /* USE_TEST_FILE_MAIN */
