@@ -2,8 +2,11 @@
 //  Window.cpp
 //  mandelzoom
 //
-//  Created by work on 1/31/19.
+//  Created by Junrui Liu on 1/31/19.
 //
+/*--------------------------------------------------------*/
+/*  CS-378           Computer Graphics         Tom Ellman */
+/*--------------------------------------------------------*/
 
 #include "Window.h"
 
@@ -36,7 +39,7 @@ void Window::center(int w, int h, Point<int>& center) const
 /* Scale a window by some factor with respect to
  a pivot point in the current window.
  */
-void Window::scaleWrtPivot(double factor, Point<int>& pivotPixel, Window& newWindow) const
+void Window::scalePreservePivot(double factor, Point<int>& pivotPixel, Window& newWindow) const
 {
     Point<double> pivotReal, newBase;
     pixelToPoint(pivotPixel, pivotReal);
@@ -48,19 +51,19 @@ void Window::scaleWrtPivot(double factor, Point<int>& pivotPixel, Window& newWin
 /* Scale a window by some factor with respect to
  * the center of the current window.
  */
-void Window::scaleWrtCenter(double factor, int w, int h, Window& newWindow) const
+void Window::scalePreserveCenter(double factor, int w, int h, Window& newWindow) const
 
 {
     Point<int> c;
     center(w, h, c);
-    scaleWrtPivot(factor, c, newWindow);
+    scalePreservePivot(factor, c, newWindow);
 }
 
 
 std::ostream& operator<< (std::ostream& out, const Window& window)
 {
     out
-    << "Window[" << window.base << ","
-    << "ratio=" << window.ratio << "]";
+    << window.base << ","
+    << "," << window.ratio;
     return out;
 }

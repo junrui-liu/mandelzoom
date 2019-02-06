@@ -2,8 +2,11 @@
 //  Point.h
 //  mandelzoom
 //
-//  Created by work on 1/31/19.
+//  Created by Junrui Liu on 1/31/19.
 //
+/*--------------------------------------------------------*/
+/*  CS-378           Computer Graphics         Tom Ellman */
+/*--------------------------------------------------------*/
 
 #ifndef Point_h
 #define Point_h

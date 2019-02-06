@@ -2,8 +2,11 @@
 //  Color.hpp
 //  mandelzoom
 //
-//  Created by work on 2/2/19.
+//  Created by Junrui Liu on 2/2/19.
 //
+/*--------------------------------------------------------*/
+/*  CS-378           Computer Graphics         Tom Ellman */
+/*--------------------------------------------------------*/
 
 #ifndef Color_hpp
 #define Color_hpp

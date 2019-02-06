@@ -2,8 +2,11 @@
 //  test.cpp
 //  mandelzoom
 //
-//  Created by work on 2/2/19.
+//  Created by Junrui Liu on 2/2/19.
 //
+/*--------------------------------------------------------*/
+/*  CS-378           Computer Graphics         Tom Ellman */
+/*--------------------------------------------------------*/
 
 #include <stdio.h>
 #include <math.h>
