@@ -37,7 +37,7 @@ public:
     static void complexMult(const Point<T>& p,
                             const Point<T>& q,
                             Point<T>& result);
-    
+//    
     static void complexScale(const Point<T>& p,
                              T scalar,
                              Point<T>& result);

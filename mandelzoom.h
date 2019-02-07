@@ -27,8 +27,8 @@
 #endif
 
 // Enable one of the following depending on your OS
-#define OS_WINDOWS
-//#define OS_MACOS
+//#define OS_WINDOWS
+#define OS_MACOS
 //#define OS_LINUX
 
 // Trigger the menu via right/middle button
