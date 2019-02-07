@@ -1,13 +1,16 @@
 # Project: Mandelzoom
 A Mandelbrot set viewer.
 
-### Features
+![](./extra-credit.png "Extra Credit Image")
+
+
+## Features
 - Use rubber band to zoom into a particular region.
 - Undo/redo previous zooms.
 - Randomize colors by simply pressing a key.
 - Resize the window to get a wider view.
 
-### Organization of the code
+## Organization of the code
 The program consists of 8 files:
 - `mandelzoom.h` contains settings that you can tweak to change the program's behavior (see the section on *Building*). It also contains declaration of constants and functions used in `mandelzoom.cpp`.
 - `mandelzoom.cpp` contains functions that does the drawing and interact with GLUT and OpenGL.
@@ -16,7 +19,7 @@ The program consists of 8 files:
 - `Color.hpp` and `Color.cpp` together contain utilities for mapping a real number in the range `[0,1]` to a RGB triple. Non-linearity is the key, and I used several trig functions in the mapping. The two files also contain deprecated code initially designed to traverse the `[0,1]^3` space (intuitively this is the set of all possible RGB triples) in some reasonable manner. (I wanted the program to automatically try all possible parameters, but it turned out that the distribution of the inverse Cantor pairing function wasn't exactly what I was hoping for.)
 
 
-### Building
+## Building
 Start an empty C++ Console Program project in Microsoft Visual Studio or in Xcode. Add all `.h`, `.tpp` and `cpp` files in this directory to the project.
 
 The settings can be adjusted in the `Settings` section of the `mandelzoom.h` file. Here's a (partial) list of changes you can make to the program:
@@ -37,7 +40,7 @@ The settings can be adjusted in the `Settings` section of the `mandelzoom.h` fil
 
 - Set the default values for window width & height by changing `DEFAULT_W` and `DEFAULT_H`
 
-### Running the program
+## Running the program
 When the program is first run, you will see a window displaying (possibly a portion of) the Mandelbrot set.
 You can interact with the program in the following ways:
 - To zoom into a region of your interest, you can
@@ -53,7 +56,7 @@ You can interact with the program in the following ways:
 - The image is redrawn whenever the window is restored from the minimized state.
 - To exit the program, select "Exit" in the menu, or press <kbd>esc</kbd>.
 
-### To-do's (in order of decreasing priority)
+## To-do's (in order of decreasing priority)
 
 - Make `Point` a superclass of `Complex` and `Pixel`. 
   - Overload the operators.
