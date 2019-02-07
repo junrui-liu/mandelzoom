@@ -10,16 +10,15 @@
 
 #include <stdio.h>
 #include <math.h>
-#include "Window.h"
+//#include "Window.h"
 #include "Point.h"
-#include "Color.hpp"
-#include "mandelzoom.h"
+//#include "Color.hpp"
+//#include "mandelzoom.h"
 
 using namespace std;
 
+#define USE_TEST_FILE_MAIN
 #ifdef USE_TEST_FILE_MAIN
-
-
 
 template <class T>
 void printArray(int size, T arr[]) {
@@ -33,13 +32,11 @@ void printArray(int size, T arr[]) {
 
 int main(int argc, char * argv[])
 {
-    int dim = 3;
-    unsigned int arr[dim];
-    for (int i = 0; i < 1000; i++)
-    {
-        Color::cantorPairingInvNDim(dim, i, arr);
-        cout << i << ":";
-        printArray<unsigned int>(dim, arr);
-    }
+    Complex z1 (1,0);
+    Complex zi (0,1);
+    Complex z0 (0,0);
+    cout << z0 << endl;
+    cout << z1 * zi << endl;
 }
+
 #endif /* USE_TEST_FILE_MAIN */

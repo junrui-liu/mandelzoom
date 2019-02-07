@@ -2,8 +2,6 @@
 //  Point.tpp
 //  mandelzoom
 //
-//  Created by Junrui Liu on 1/31/19.
-//
 /*--------------------------------------------------------*/
 /*  CS-378           Computer Graphics         Tom Ellman */
 /*--------------------------------------------------------*/
@@ -107,7 +105,7 @@ unsigned int Point<T>::computeIterationsInline(const Point<T>& c, unsigned int b
 template <class T>
 std::ostream& operator<< (std::ostream& out, const Point<T>& p)
 {
-    out << p.x << "," << p.y;
+    out << p.x << " " << p.y;
     return out;
 }
 

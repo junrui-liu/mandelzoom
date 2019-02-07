@@ -2,8 +2,6 @@
 //  Window.cpp
 //  mandelzoom
 //
-//  Created by Junrui Liu on 1/31/19.
-//
 /*--------------------------------------------------------*/
 /*  CS-378           Computer Graphics         Tom Ellman */
 /*--------------------------------------------------------*/
@@ -63,7 +61,6 @@ void Window::scalePreserveCenter(double factor, int w, int h, Window& newWindow)
 std::ostream& operator<< (std::ostream& out, const Window& window)
 {
     out
-    << window.base << ","
-    << "," << window.ratio;
+    << window.base << " " << window.ratio;
     return out;
 }

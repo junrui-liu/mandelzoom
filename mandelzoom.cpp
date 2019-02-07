@@ -2,7 +2,6 @@
 //  mandelzoom.cpp
 //  mandelzoom
 //
-//  Created by Junrui Liu on 1/31/19.
 //  Adapted from rubber-band.cpp written by Professor Ellman
 /*--------------------------------------------------------*/
 /*  CS-378           Computer Graphics         Tom Ellman */
@@ -19,6 +18,7 @@
 #include "Window.h"
 #include "Point.h"
 #include "Color.hpp"
+#include <assert.h>
 
 using namespace std;
 
@@ -53,104 +53,18 @@ mt19937 gen(rd());
  *            Function Definitions
  *---------------------------------------------*/
 
-/* -- Test function --
- * Compute the (non-)cumulative distribution of intensities.
- */
-void computeDistribution()
-{
-    int N = NUM_ITER;
-    Point<double> c;
-    Point<int> current_pixel;
-    unsigned int n_partitions = 100;
-    double partition_size = 1.0 / n_partitions;
-    unsigned long *nonCumulativeFreqs = (unsigned long *)calloc(n_partitions, sizeof(unsigned long));
-    unsigned long nonCumulativeTotal = 0;
-    
-    int n, p;
-    double intensity;
-    for (int u = 0; u < windowWidth; u++)
-    {
-        for (int v = 0; v < windowHeight; v++)
-        {
-            current_pixel.x = u;
-            current_pixel.y = v;
-            currentWindow->pixelToPoint(current_pixel, c);
-            n = Point<double>::computeIterationsInline(c, N);
-            intensity = (1.0 * n) / N;
-            p = (unsigned int)floor(intensity / partition_size);
-            
-            nonCumulativeFreqs[p] += 1;
-            nonCumulativeTotal += 1;
-        }
-    }
-    
-    double* cumulativeFreqs = (double *) calloc (n_partitions, sizeof(double));
-    unsigned long cumulativeTotal;
-    cumulativeFreqs[0] = nonCumulativeFreqs[0];
-    cumulativeTotal = nonCumulativeFreqs[0];
-    for (int i = 1; i < n_partitions; i++)
-    {
-        cumulativeFreqs[i] = nonCumulativeFreqs[i] + cumulativeFreqs[i - 1];
-    }
-    for (int i = 0; i < n_partitions; i++)
-    {
-        cumulativeFreqs[i] /= nonCumulativeTotal;
-        cout << i << "," << nonCumulativeFreqs[i];
-        cout << endl;
-        //        cout << "," << cumulativeFreqs[i] << endl;
-    }
-    free(nonCumulativeFreqs);
-    free(cumulativeFreqs);
-}
-
-
-/* -- Test function --
- * Write distribution to a file.
- */
-void writeDistributionToFile(const string& filename)
-{
-    ofstream myfile(filename, ios::out | ios::trunc);
-    if (myfile.is_open())
-    {
-        int N = NUM_ITER;
-        Point<double> c;
-        Point<int> current_pixel;
-        int n;
-        double intensity;
-        int step = 5;
-        for (int u = 0; u < windowWidth; u += step)
-        {
-            for (int v = 0; v < windowHeight; v += step)
-            {
-                current_pixel.x = u;
-                current_pixel.y = v;
-                currentWindow->pixelToPoint(current_pixel, c);
-                n = Point<double>::computeIterationsInline(c, N);
-                intensity = (1.0 * n) / N;
-                myfile << u * windowWidth + v << "," << intensity << endl;
-            }
-        }
-        myfile.close();
-        cout << "finished writing";
-    }
-    else cout << "cannot open file.\n";
-}
-
-
 /*
  * Clear the screen and redraw the image.
  */
 void drawMandelbrot()
 {
-    cout << *currentWindow << endl;
-    cout << "Color paramters: {" << colorParam1 << ","
+	cout << "Window parameters: <internal> " << *currentWindow <<
+		" / <standard> ";
+	printInternalToConsoleArgs(currentWindow);
+	cout << endl;
+    cout << "Color parameters: {" << colorParam1 << ","
          << colorParam2 << "," << colorParam3 << "}" << endl;
-//    glClear(GL_COLOR_BUFFER_BIT);
     drawPartialMandelbrot(0, 0, windowWidth, windowHeight);
-    //    computeCumulativeFrequency();
-#ifdef INTENSITY_DISTRIBUTION_OUTPUT
-    writeDistributionToFile(OUTPUT_FILE);
-#endif
 }
 
 
@@ -247,7 +161,6 @@ void reshapePreserveBase(int w, int h)
     }
     init = false;
     
-    // TODO: render only what is absolutely necessary
     glViewport(0, 0, (GLsizei)w, (GLsizei)h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -500,6 +413,34 @@ void mouse(int button, int state, int x, int y)
 }
 
 
+Window* convertConsoleArgsToInternal(double x0, double x1, double y0, double y1, int w, int h)
+{
+	Window* converted = new Window();
+	assert (x0 < x1);
+	assert (y0 < y1);
+	assert(w > 0 && h > 0);
+	double baseX = min(x0, x1);
+	double baseY = min(y0, y1);
+	double otherX = max(x0, x1);
+	double otherY = max(y0, y1);
+	converted->ratio = min(w/(otherX - baseX), h/(otherY - baseY));
+	converted->base.x = baseX;
+	converted->base.y = baseY;
+	return converted;
+}
+
+void printInternalToConsoleArgs(Window* win)
+{
+	double w, h, x0, y0, x1, y1;
+	w = windowWidth;
+	h = windowHeight;
+	x0 = win->base.x;
+	y0 = win->base.y;
+	x1 = x0 + w / win->ratio;
+	y1 = y0 + h / win->ratio;
+	cout << x0 << " " << x1 << " " << y0 << " " << y1 << " " << w << " " << h;
+}
+
 /*
  * Main function.
  * Adapted from Prof. Ellman's example code.
@@ -511,27 +452,42 @@ int main(int argc, char * argv[])
 #ifdef OS_WINDOWS
         _control87( MCW_EM, MCW_EM );
 #endif
-    
-    // Initialize glut with command line parameters. Not necessary on Windows.
+// Initialize glut with command line parameters. Not necessary on Windows.
+#ifdef OS_MACOS
     glutInit(&argc, argv);
-    
+#endif
+
     // Choose RGB display mode for normal screen window.
     glutInitDisplayMode(GLUT_RGB);
     
     // Set initial window size, position, and title.
-    glutInitWindowSize(INITIAL_WIN_W, INITIAL_WIN_H);
-    glutInitWindowPosition(INITIAL_WIN_X, INITIAL_WIN_Y);
-    windowWidth = INITIAL_WIN_W;
-    windowHeight = INITIAL_WIN_H;
+#ifdef CONSOLE_VER
+	double x0, x1, y0, y1;
+	int w, h;
+	sscanf_s(argv[1], "%lf", &x0);
+	sscanf_s(argv[2], "%lf", &x1);
+	sscanf_s(argv[3], "%lf", &y0);
+	sscanf_s(argv[4], "%lf", &y1);
+	sscanf_s(argv[5], "%d", &w);
+	sscanf_s(argv[6], "%d", &h);
+	glutInitWindowSize(w, h);
+	glutInitWindowPosition(INITIAL_WIN_X, INITIAL_WIN_Y);
+	windowWidth = w;
+	windowHeight = h;
+	Window* initWindow = convertConsoleArgsToInternal(x0, x1, y0, y1, w, h);
+#else
+	glutInitWindowSize(INITIAL_WIN_W, INITIAL_WIN_H);
+	glutInitWindowPosition(INITIAL_WIN_X, INITIAL_WIN_Y);
+	windowWidth = INITIAL_WIN_W;
+	windowHeight = INITIAL_WIN_H;
+	const double initialWindowParams[] = INITIAL_WINDOW_PARAMS;
+	Point<double> initialWindowBase(initialWindowParams[0], initialWindowParams[1]);
+	double initWindowRatio = initialWindowParams[2];
+	Window* initWindow = new Window(initialWindowBase, initWindowRatio);
+#endif
+	currentWindow = initWindow;
     glutCreateWindow("Mandelzoom");
-    
-    
-    const double initialWindowParams[] = INITIAL_WINDOW_PARAMS;
-    Point<double> initialWindowBase(initialWindowParams[0], initialWindowParams[1]);
-    double initWindowRatio = initialWindowParams[2];
-    Window* initWindow = new Window(initialWindowBase, initWindowRatio);
-    currentWindow = initWindow;
-    
+
     colorParam1 = initialColorParams[0];
     colorParam2 = initialColorParams[1];
     colorParam3 = initialColorParams[2];
@@ -554,7 +510,7 @@ int main(int argc, char * argv[])
     // Set the callbacks for the normal screen window.
     glutDisplayFunc(drawMandelbrot);
     glutMouseFunc(mouse);
-    glutReshapeFunc(reshapePreserveCenter);
+    glutReshapeFunc(reshapePreserveBase);
     glutKeyboardFunc(keyboard);
     glutMotionFunc(rubberBand);
     glutPassiveMotionFunc(rubberBand);

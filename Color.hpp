@@ -2,15 +2,13 @@
 //  Color.hpp
 //  mandelzoom
 //
-//  Created by Junrui Liu on 2/2/19.
-//
 /*--------------------------------------------------------*/
 /*  CS-378           Computer Graphics         Tom Ellman */
 /*--------------------------------------------------------*/
 
 #ifndef Color_hpp
 #define Color_hpp
-
+#define _USE_MATH_DEFINES
 #include <math.h>
 
 #define PI_2X (2*M_PI)

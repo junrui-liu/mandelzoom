@@ -2,49 +2,78 @@
 //  mandelzoom.h
 //  mandelzoom
 //
-//  Created by Junrui Liu on 1/31/19.
-//
 /*--------------------------------------------------------*/
 /*  CS-378           Computer Graphics         Tom Ellman */
 /*--------------------------------------------------------*/
 
 #ifndef mandelzoom_h
 #define mandelzoom_h
+#include "Window.h"
 
-//#define INTENSITY_DISTRIBUTION_OUTPUT "./out.csv"
-//#define USE_TEST_FILE_MAIN
 
 /*----------------------------------------------------
- *                   Target OS
+ *                   Settings
  *---------------------------------------------------*/
+#define EXTRA_CREDIT_VER // enable this and disable CONSOLE_VER to see my submission of the extra credit img
+//#define CONSOLE_VER    // enable this to run with console arguments
 
-/* Please uncomment one of the following */
+#ifdef EXTRA_CREDIT_VER
+#define INITIAL_WINDOW_PARAMS IMG_EXTRA_CREDIT
 
-// define OS_WINDOWS
-#define OS_MACOS
+// display the complete mandelbrot set by default
+// You might want to change IMG_COMPLETE to one of the predefined images (see the corresponding section below)
+#else 
+#define INITIAL_WINDOW_PARAMS IMG_COMPLETE 
+#endif
+
+// Enable one of the following depending on your OS
+#define OS_WINDOWS
+//#define OS_MACOS
 //#define OS_LINUX
 
+// Trigger the menu via right/middle button
+//#define MENU_BUTTON GLUT_RIGHT_BUTTON
+#define MENU_BUTTON GLUT_MIDDLE_BUTTON
+
+// set the default window width/height for non-extra-credit ver.
+#define DEFAULT_W 800
+#define DEFAULT_H 800
+
+
+/*----------------------------------------------------
+ *                   Constants
+ *---------------------------------------------------*/
+
 #ifdef OS_MACOS
-    #include <GLUT/glut.h>
+#include <GLUT/glut.h>
 #else
-    #include <GL/glut.h>
+#include <GL/glut.h>
 #endif
 
 #ifdef OS_WINDOWS
 #include <Windows.h>
 #endif
 
-/*----------------------------------------------------
- *                   Constants
- *---------------------------------------------------*/
-#define MENU_BUTTON GLUT_RIGHT_BUTTON
-//#define MENU_BUTTON GLUT_MIDDLE_BUTTON
-#define INITIAL_WIN_W 800
-#define INITIAL_WIN_H 800
-#define INITIAL_WIN_X 0
-#define INITIAL_WIN_Y 0
-#define NUM_ITER 500
-#define FLUSH_PERIOD 30
+#define EXTRA_CREDIT_W 1600
+#define EXTRA_CREDIT_H 900
+
+#ifdef EXTRA_CREDIT_VER
+#define INITIAL_WIN_W EXTRA_CREDIT_W
+#define INITIAL_WIN_H EXTRA_CREDIT_H
+#else // use default width and height
+#define INITIAL_WIN_W DEFAULT_W
+#define INITIAL_WIN_H DEFAULT_H
+#endif
+
+#define INITIAL_WIN_X 10
+#define INITIAL_WIN_Y 10
+#define EXTRA_CREDIT_ITER 520  // please don't change this in the extra credit version
+#ifdef EXTRA_CREDIT_VER
+#define NUM_ITER EXTRA_CREDIT_ITER
+#else
+#define NUM_ITER 700 // default number of iterations
+#endif
+#define FLUSH_PERIOD 10
 
 #define ZOOM_OUT_DEFAULT_SCALING 0.5
 #define ZOOM_IN_DEFAULT_SCALING 2
@@ -64,9 +93,12 @@ enum menu_t {
 
 
 /*----------------------------------------------------
- *                 Default Images
+ *                 Predefined Images
  *---------------------------------------------------*/
-#define INITIAL_WINDOW_PARAMS IMG_COMPLETE
+// The following parameters are represented using internal representation (x0, y0, scaling),
+// not in the format of console input paramters (x0, x1, y0, y1, w, h).
+
+#define IMG_EXTRA_CREDIT {.36037937, .64080188, 3.82747e+08}
 #define IMG_COMPLETE { -2, -1.25, INITIAL_WIN_W / 2.5 }
 #define IMG_INTEGRAL_SIGN {-0.777222,0.135332,,954472}
 #define IMG_TREES {0.357867,0.647837, 3.52118e+06} // best viewed in 600*800
@@ -75,15 +107,15 @@ enum menu_t {
 #define IMG_SPIRAL {-0.748273,-0.0544996, 7.13855e+06}; // spiral
 #define IMG_SNOWFLAKE {-1.06236,0.260434,128835} // snowflake
 #define IMG_BRAIN {0.360128,0.641216,7.85541e+07} // brain
-#define IMG_FLOWER {0.360516,0.640559,1.33248e+08} // flower
+#define IMG_FLOWER {0.3605162,0.6405592,1.30296e+08} // flower
 #define IMG_FLOWER_2 {0.360728,0.640144, 1.98057e+08} // flower'
 #define IMG_TREASURE_LIES_HERE {0.352861,0.638862, 73178.8} // interesting region
 
-/* Below are standard images suggested in the homework handout */
-#define IMG_STANDARD_1 {0.262, 0.263, 0.002, 0.003};
-#define IMG_STANDARD_2 {0.26215, 0.26225, 0.00215, 0.00225};
-#define IMG_STANDARD_3 {-1.4014, -1.4010, -0.0002, 0.0002};
-#define IMG_STANDARD_4 {0.281, 0.291, -0.019, -0.009};
+/* Below are standard images suggested in the homework handout in internal representation */
+#define IMG_STANDARD_1 {0.262, 0.002, 400000};    // 0.262   0.263   0.002   0.003
+#define IMG_STANDARD_2 {0.26215, 0.00215, 4e+06}; // 0.26215 0.26225 0.00215 0.00225 
+#define IMG_STANDARD_3 {-1.4014, -0.0002, 1e+06}; // -1.4014 -1.4010 -0.0002 0.0002
+#define IMG_STANDARD_4 {0.281, 0.291, 40000};     // 0.281   0.291   -0.019  -0.009
 
 
 /*----------------------------------------------------
@@ -96,7 +128,13 @@ enum menu_t {
  *    g = sin(I*PI_2X * (k2/2 +1));
  *    b = sin(I*PI_2X * (k3/2 +1));
  */
+
+#ifdef EXTRA_CREDIT_VER
+#define INITIAL_COLOR_PARAMS COLOR_EXTRA_CREDIT_OCEAN
+#else
 #define INITIAL_COLOR_PARAMS COLOR_BRIGHT
+#endif
+#define COLOR_EXTRA_CREDIT_OCEAN {.63, .37, .28} // ocean
 #define COLOR_BRIGHT {0.2,0.12,0.05}
 #define COLOR_HIGH_CONTRAST {0.942,0.18,0.344} // high contrast
 #define COLOR_PHOSPHORUS {0.294,0.356,0.141} // phosphorus
@@ -127,7 +165,7 @@ enum menu_t {
 #define COLOR_LIGHT_BLUE {0.962,0.636,0.55} // light blue
 #define COLOR_COLD_FIRE {0.647,0.863,0.863} // cold fire
 #define COLOR_GOLDEN_SLUMBER {0.248,0.251,0.421} // golden slumber
-// {0.723,0.368,0.226}
+#define TEST {0.59, 0.47, 0.21}
 
 
 /*----------------------------------------------------
@@ -137,14 +175,13 @@ enum menu_t {
 /* drawing & zooming functions */
 void drawPartialMandelbrot(int x0, int y0, int x1, int y1);
 void drawMandelbrot();
-void clearPicture();
-void drawLine(int xOld, int yOld, int xNew, int yNew);
 void drawRubberBand(int xA, int yA, int xS, int yS);
 void zoomFunc(menu_t choice);
+Window* convertConsoleArgsToInternal(double x0, double y0, double x1, double y1, int w, int h);
+void printInternalToConsoleArgs(Window* win);
 
 /* callbacks */
 void rubberBand(int x, int y);
-void reshape(int w, int h);
 void keyboard(GLubyte key, int, int);
 void mainMenu(int item);
 void setMenus();
