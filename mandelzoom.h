@@ -32,8 +32,8 @@
 //#define OS_LINUX
 
 // Trigger the menu via right/middle button
-//#define MENU_BUTTON GLUT_RIGHT_BUTTON
-#define MENU_BUTTON GLUT_MIDDLE_BUTTON
+#define MENU_BUTTON GLUT_RIGHT_BUTTON
+//#define MENU_BUTTON GLUT_MIDDLE_BUTTON
 
 // set the default window width/height for non-extra-credit ver.
 #define DEFAULT_W 800
