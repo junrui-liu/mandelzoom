@@ -1,7 +1,7 @@
 # Project: Mandelzoom
 A Mandelbrot set viewer.
 
-![](./extra-credit.png "Extra Credit Image")
+![](./img/extra-credit.png "Extra Credit Image")
 
 
 ## Features
